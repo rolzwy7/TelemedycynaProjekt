@@ -1,0 +1,5 @@
+vtkplotter
+matplotlib
+pydicom
+Pillow
+numpy
