@@ -1,3 +1,8 @@
+# custom
+series-000001/
+series-000001-tiff/
+TEST_MULTI.tif
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
