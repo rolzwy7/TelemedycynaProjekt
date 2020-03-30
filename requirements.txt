@@ -1,5 +1,3 @@
-vtkplotter
+cx-Freeze
 matplotlib
-pydicom
 Pillow
-numpy
