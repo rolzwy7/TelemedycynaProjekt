@@ -1,9 +1,22 @@
 from PIL import Image
 import math
 import os
+import random
+
+
+def random_color():
+    return "#"+hex(random.randint(0, int('ffffff', 16)))[2:]
+
 
 DEBUG_COLOR = 125
 PIXEL_LOOP = 4
+DEBUG = False
+
+_print = print
+
+def print(*args, **kwargs):
+    if DEBUG:
+        _print(*args, **kwargs)
 
 
 class Tracker():
@@ -183,15 +196,15 @@ c = 0
 for r, d, files in os.walk("data"):
     for f in files:
         c += 1
-        if c % 6:
+        if c % 10:
             continue
         imagepath = os.path.join(r, f)
-        print("[*] Filepath:", imagepath)
+        _print("[*] Filepath:", imagepath)
         obj.load_image(imagepath)
         obj.map_slice()
         print("trackers after", len(obj.TRACKERS))
 
-import pdb; pdb.set_trace();
+# import pdb; pdb.set_trace();
 
 a = None
 
@@ -223,6 +236,7 @@ for t in obj.SPHERES:
     # xi, yi, zi, ri = 5, 5, 5, 10
     # (xs,ys,zs) = drawSphere(xi,yi,zi,ri)
     # ax.plot_wireframe(xs, ys, zs, color="r")
-    ax.scatter(xi, yi, zi, s=ri, c='blue', alpha=0.75)
+    # ax.scatter(xi, yi, zi, s=ri, c=random_color(), alpha=0.75)
+    ax.scatter(xi, yi, zi, s=ri, alpha=0.75)
 
 plt.show()
