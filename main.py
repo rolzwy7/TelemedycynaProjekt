@@ -3,7 +3,7 @@ import math
 import os
 
 DEBUG_COLOR = 125
-PIXEL_LOOP = 50
+PIXEL_LOOP = 4
 
 
 class Tracker():
@@ -183,7 +183,7 @@ c = 0
 for r, d, files in os.walk("data"):
     for f in files:
         c += 1
-        if c % 5:
+        if c % 6:
             continue
         imagepath = os.path.join(r, f)
         print("[*] Filepath:", imagepath)
