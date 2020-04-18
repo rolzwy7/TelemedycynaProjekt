@@ -12,7 +12,7 @@ buildOptions = dict(
 base = 'Console'
 
 executables = [
-    Executable('telemed.py', base=base)
+    Executable('main.py', base=base)
 ]
 
 setup(name='TelemedycynaProjekt',

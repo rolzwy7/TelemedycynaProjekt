@@ -9,21 +9,22 @@ import random
 import argparse
 
 parser = argparse.ArgumentParser()
+parser.add_argument("dirpath")
 parser.add_argument("K", type=int)
 args = parser.parse_args()
 
 K = args.K # K klas
-
+dirpath = args.dirpath
 
 def random_color():
-    return "#"+hex(random.randint(0, int('ffffff', 16)))[2:]
+    return "#" + hex(random.randint(0, int('ffffff', 16)))[2:]
 
 RESULT_FILE = "result.json"
 
 DEBUG_COLOR = 125
 
 PIXEL_LOOP = 14
-PIXEL_LOOP = 30
+# PIXEL_LOOP = 30
 
 DEBUG = False
 
@@ -251,7 +252,7 @@ class Mapper():
 # Map objects
 obj = Mapper(512, 512)
 c = 0
-for r, d, files in os.walk("data"):
+for r, d, files in os.walk(dirpath):
     files_len = len(files)
     for f in files:
         c += 1
@@ -269,6 +270,7 @@ for r, d, files in os.walk("data"):
 _print("")
 _print("Spheres detected  :", len(obj.SPHERES))
 _r = [_.max_radius for _ in obj.SPHERES]
+_print(_r)
 _print("  - max radius: ", max(_r))
 _print("  - min radius: ", min(_r))
 _print("Saving results to :", RESULT_FILE)
