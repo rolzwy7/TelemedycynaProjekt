@@ -1,8 +1,10 @@
+from pprint import pprint
 from PIL import Image
 import math
 import os
 import random
 import json
+import random
 
 import argparse
 
@@ -21,6 +23,7 @@ RESULT_FILE = "result.json"
 DEBUG_COLOR = 125
 
 PIXEL_LOOP = 14
+PIXEL_LOOP = 30
 
 DEBUG = False
 
@@ -257,7 +260,7 @@ for r, d, files in os.walk("data"):
         imagepath = os.path.join(r, f)
         _print("\r[*] Filepath   :", imagepath, "%.2f%%" % (
             100*((c)/files_len)
-        ), end="")
+        ), end="" if not DEBUG else "\n")
         obj.load_image(imagepath)
         obj.map_slice()
         print("\ntrackers after", len(obj.TRACKERS))
@@ -288,6 +291,51 @@ with open(RESULT_FILE, "wb") as dst:
 
 a = None
 
+# K mean
+rand_rad = []
+for _ in range(K):
+    candid = random.randint(1, max(_r)+5)
+    while candid in rand_rad:
+        candid = random.randint(min(_r)-3, max(_r)+3)
+    rand_rad.append(candid)
+
+_print(rand_rad)
+
+rand_rad_old = None
+rand_rad = {x:[] for x in rand_rad}
+
+while True:
+
+    for sph in obj.SPHERES:
+        _min = abs(list(rand_rad.keys())[0] - sph.max_radius)
+        _class = None
+        # _print("\n")
+        for rr in rand_rad.keys():
+            candid = abs(rr - sph.max_radius)
+            # _print("For sphere", sph, "calc", rr, "-", sph.max_radius, "=", candid)
+            if candid <= _min:
+                _min = candid
+                _class = rr
+        # _print(_min, "-> class", _class)
+        rand_rad[_class].append((
+            sph.max_radius,
+            sph.max_radius_x,
+            sph.max_radius_y,
+            sph.max_radius_z
+        ))
+    
+    rand_rad_old = rand_rad
+
+    rand_rad = {sum([x[0] for x in v ])/len(v):[] for k, v in rand_rad.items()}
+            
+    # pprint(rand_rad_old.keys())
+    # pprint(rand_rad.keys())
+
+    if rand_rad_old.keys() == rand_rad.keys():
+        break
+
+
+
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
@@ -307,12 +355,16 @@ def drawSphere(xCenter, yCenter, zCenter, r):
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-for t in obj.SPHERES:
-    ri = t.max_radius
-    xi = t.max_radius_x
-    yi = t.max_radius_y
-    zi = t.max_radius_z
-
-    ax.scatter(xi, yi, zi, s=ri*ri, alpha=0.9)
+c = 0
+colors = ["blue", "red", "green"]
+for k, v in rand_rad_old.items():
+    for t in v:
+        r, x, y, z = t
+        ri = r
+        xi = x
+        yi = y
+        zi = z
+        ax.scatter(xi, yi, zi, s=ri*ri, alpha=0.9, c=colors[c%3])
+    c += 1
 
 plt.show()
