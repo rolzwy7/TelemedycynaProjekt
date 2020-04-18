@@ -2,14 +2,26 @@ from PIL import Image
 import math
 import os
 import random
+import json
+
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("K", type=int)
+args = parser.parse_args()
+
+K = args.K # K klas
 
 
 def random_color():
     return "#"+hex(random.randint(0, int('ffffff', 16)))[2:]
 
+RESULT_FILE = "result.json"
 
 DEBUG_COLOR = 125
-PIXEL_LOOP = 4
+
+PIXEL_LOOP = 14
+
 DEBUG = False
 
 _print = print
@@ -30,9 +42,15 @@ class Tracker():
         self.max_radius_z = 0
     
     def is_dead(self, im):
+        """
+            check if tracker is dead (positioned on black pixel)
+        """
         return im.getpixel((self.x, self.y)) == 0
 
     def center_myself(self, im, mark_spot=False):
+        """
+            Center tracker inside white space
+        """
         x = self.x
         y = self.y
         top = self.get_distance_top(im, x, y)
@@ -61,6 +79,9 @@ class Tracker():
             self.debug_draw_cross(im)
 
     def debug_draw_cross(self, im, size=10):
+        """
+            Draw debug grey cross
+        """
         x = self.x
         y = self.y
         for i in range(size):
@@ -71,6 +92,9 @@ class Tracker():
             im.putpixel((x,y-i), DEBUG_COLOR)
     
     def calc_radius(self, im):
+        """
+            Calculate white space radius
+        """
         x = self.x
         y = self.y
         distances = [
@@ -88,6 +112,9 @@ class Tracker():
         return self.radius
 
     def get_distance_right(self, im, x, y):
+        """
+            Get distance from center to white space right border (in pixels)
+        """
         x_cp = x
         while im.getpixel((x, y)) in [255, DEBUG_COLOR]:
             x += 1
@@ -95,6 +122,9 @@ class Tracker():
         return self.dist_right
 
     def get_distance_left(self, im, x, y):
+        """
+            Get distance from center to white space left border (in pixels)
+        """
         x_cp = x
         while im.getpixel((x, y)) in [255, DEBUG_COLOR]:
             x -= 1
@@ -102,6 +132,9 @@ class Tracker():
         return self.dist_left
 
     def get_distance_top(self, im, x, y):
+        """
+            Get distance from center to white space top border (in pixels)
+        """
         y_cp = y
         while im.getpixel((x, y)) in [255, DEBUG_COLOR]:
             y -= 1
@@ -109,6 +142,9 @@ class Tracker():
         return self.dist_top
 
     def get_distance_bottom(self, im, x, y):
+        """
+            Get distance from center to white space bottom border (in pixels)
+        """
         y_cp = y
         while im.getpixel((x, y)) in [255, DEBUG_COLOR]:
             y += 1
@@ -116,6 +152,9 @@ class Tracker():
         return self.dist_bottom
     
     def __str__(self):
+        """
+            Some debug info
+        """
         msg = ""
         _ = {
             "id": str(id(self)),
@@ -137,6 +176,9 @@ class Mapper():
         self.z = 1
     
     def clear_lost_trackers(self):
+        """
+            Remove lost trackers from trackers list
+        """
         if not self.TRACKERS:
             return
         tmp = []
@@ -150,6 +192,9 @@ class Mapper():
         self.TRACKERS = tmp
 
     def recalculate_centers(self):
+        """
+            Calculate centers for all trackers
+        """
         if not self.TRACKERS:
             return
         print("[*] Recalculating existing centers:")
@@ -158,6 +203,9 @@ class Mapper():
             print(t)
     
     def load_image(self, imagepath):
+        """
+            Load new image/slice
+        """
         self.im = Image.open(imagepath)
         assert self.im.width == self.width
         assert self.im.height == self.height
@@ -168,6 +216,9 @@ class Mapper():
         self.recalculate_centers()
     
     def is_center_taken(self, candid):
+        """
+            Check if white space (its center) is already taken by other tracker
+        """
         for t in self.TRACKERS:
             if math.sqrt( (t.x-candid.x)**2 + (t.y-candid.y)**2 ) <= 2:
                 # print("[-] (", candid.x, candid.y, ") is taken")
@@ -176,6 +227,9 @@ class Mapper():
         return False
     
     def map_slice(self):
+        """
+            Map currently loaded image
+        """
         for y in range(0, self.im.height, PIXEL_LOOP):
             for x in range(0, self.im.width, PIXEL_LOOP):
                 pixel = self.im.getpixel((x,y))
@@ -191,23 +245,48 @@ class Mapper():
         # if self.TRACKERS:
         #     self.im.show()
 
+# Map objects
 obj = Mapper(512, 512)
 c = 0
 for r, d, files in os.walk("data"):
+    files_len = len(files)
     for f in files:
         c += 1
-        if c % 10:
+        if c % 4:
             continue
         imagepath = os.path.join(r, f)
-        _print("[*] Filepath:", imagepath)
+        _print("\r[*] Filepath   :", imagepath, "%.2f%%" % (
+            100*((c)/files_len)
+        ), end="")
         obj.load_image(imagepath)
         obj.map_slice()
-        print("trackers after", len(obj.TRACKERS))
+        print("\ntrackers after", len(obj.TRACKERS))
+    break
 
-# import pdb; pdb.set_trace();
+_print("")
+_print("Spheres detected  :", len(obj.SPHERES))
+_r = [_.max_radius for _ in obj.SPHERES]
+_print("  - max radius: ", max(_r))
+_print("  - min radius: ", min(_r))
+_print("Saving results to :", RESULT_FILE)
+# Save results
+with open(RESULT_FILE, "wb") as dst:
+    to_write = {
+        "spheres": [
+            {
+                "x": _.max_radius_x,
+                "y": _.max_radius_y,
+                "z": _.max_radius_z,
+                "r": _.max_radius,
+            } for _ in obj.SPHERES
+        ]
+    }
+
+    dst.write(
+        json.dumps(to_write, indent=4).encode()
+    )
 
 a = None
-
 
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
@@ -233,10 +312,7 @@ for t in obj.SPHERES:
     xi = t.max_radius_x
     yi = t.max_radius_y
     zi = t.max_radius_z
-    # xi, yi, zi, ri = 5, 5, 5, 10
-    # (xs,ys,zs) = drawSphere(xi,yi,zi,ri)
-    # ax.plot_wireframe(xs, ys, zs, color="r")
-    # ax.scatter(xi, yi, zi, s=ri, c=random_color(), alpha=0.75)
-    ax.scatter(xi, yi, zi, s=ri, alpha=0.75)
+
+    ax.scatter(xi, yi, zi, s=ri*ri, alpha=0.9)
 
 plt.show()

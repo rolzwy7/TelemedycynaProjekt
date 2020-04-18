@@ -1,3 +1,4 @@
 cx-Freeze
-matplotlib
 Pillow
+matplotlib
+numpy
