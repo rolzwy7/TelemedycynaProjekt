@@ -1,34 +1,70 @@
 from pprint import pprint
 from PIL import Image
-import math
-import os
-import random
-import json
-import random
+from math import ceil, sqrt
 
-import argparse
+from os import walk as os_walk
+from os import path as os_path
 
-parser = argparse.ArgumentParser()
-parser.add_argument("dirpath")
-parser.add_argument("K", type=int)
+from random import randint
+from json import dumps
+
+from argparse import ArgumentParser
+
+import matplotlib.pyplot as plt
+
+
+
+parser = ArgumentParser()
+parser.add_argument(
+    "dirpath",
+    help="dirpath <help here>"
+)
+parser.add_argument(
+    "K", type=int,
+    choices=[2,3,4,5,6],
+    help="K <help here>"
+)
+parser.add_argument(
+    "--slice-skip", type=int,
+    default=4, choices=[1, 4,5,6,7],
+    help="slice skip <help here>"
+)
+parser.add_argument(
+    "--pixel-skip", type=int,
+    default=14, choices=[1, 3, 7, 14, 20, 30],
+    help="pixel skip <help here>"
+)
+parser.add_argument(
+    "--debug", action="store_true",
+    help="debug <help here>"
+)
 args = parser.parse_args()
+
+slice_skip = args.slice_skip
+pixel_skip = args.pixel_skip
 
 K = args.K # K klas
 dirpath = args.dirpath
-
-def random_color():
-    return "#" + hex(random.randint(0, int('ffffff', 16)))[2:]
 
 RESULT_FILE = "result.json"
 
 DEBUG_COLOR = 125
 
-PIXEL_LOOP = 14
-# PIXEL_LOOP = 30
+PIXEL_LOOP = pixel_skip
 
-DEBUG = False
+DEBUG = args.debug
 
 _print = print
+
+
+
+## Info
+if DEBUG:
+    print("DEBUG is ON")
+
+print("Result file :", RESULT_FILE)
+print("Slice skip  :", slice_skip, "slices")
+print("Pixel skip  :", pixel_skip, "px")
 
 def print(*args, **kwargs):
     if DEBUG:
@@ -107,7 +143,7 @@ class Tracker():
             self.get_distance_top(im, x, y),
             self.get_distance_bottom(im, x, y),
         ]
-        self.radius = math.ceil(sum(distances)/len(distances))
+        self.radius = ceil(sum(distances)/len(distances))
         if self.max_radius < self.radius:
             self.max_radius = self.radius
             self.max_radius_x = self.x
@@ -224,7 +260,7 @@ class Mapper():
             Check if white space (its center) is already taken by other tracker
         """
         for t in self.TRACKERS:
-            if math.sqrt( (t.x-candid.x)**2 + (t.y-candid.y)**2 ) <= 2:
+            if sqrt( (t.x-candid.x)**2 + (t.y-candid.y)**2 ) <= 2:
                 # print("[-] (", candid.x, candid.y, ") is taken")
                 return True
         # print("[+] (", candid.x, candid.y, ") is free")
@@ -252,13 +288,13 @@ class Mapper():
 # Map objects
 obj = Mapper(512, 512)
 c = 0
-for r, d, files in os.walk(dirpath):
+for r, d, files in os_walk(dirpath):
     files_len = len(files)
     for f in files:
         c += 1
-        if c % 4:
+        if c % slice_skip:
             continue
-        imagepath = os.path.join(r, f)
+        imagepath = os_path.join(r, f)
         _print("\r[*] Filepath   :", imagepath, "%.2f%%" % (
             100*((c)/files_len)
         ), end="" if not DEBUG else "\n")
@@ -288,77 +324,98 @@ with open(RESULT_FILE, "wb") as dst:
     }
 
     dst.write(
-        json.dumps(to_write, indent=4).encode()
+        dumps(to_write, indent=4).encode()
     )
 
 a = None
 
-# K mean
-rand_rad = []
-for _ in range(K):
-    candid = random.randint(1, max(_r)+5)
-    while candid in rand_rad:
-        candid = random.randint(min(_r)-3, max(_r)+3)
-    rand_rad.append(candid)
 
-_print(rand_rad)
+def KKlas():
+    # K mean
+    rand_rad = []
+    for _ in range(K):
+        candid = randint(1, max(_r)+5)
+        while candid in rand_rad:
+            candid = randint(min(_r)-3, max(_r)+3)
+        rand_rad.append(candid)
 
-rand_rad_old = None
-rand_rad = {x:[] for x in rand_rad}
+    _print(rand_rad)
+
+    rand_rad_old = None
+    rand_rad = {x:[] for x in rand_rad}
+
+    while True:
+
+        for sph in obj.SPHERES:
+            _min = abs(list(rand_rad.keys())[0] - sph.max_radius)
+            _class = None
+            # _print("\n")
+            for rr in rand_rad.keys():
+                candid = abs(rr - sph.max_radius)
+                # _print("For sphere", sph, "calc", rr, "-", sph.max_radius, "=", candid)
+                if candid <= _min:
+                    _min = candid
+                    _class = rr
+            # _print(_min, "-> class", _class)
+            rand_rad[_class].append((
+                sph.max_radius,
+                sph.max_radius_x,
+                sph.max_radius_y,
+                sph.max_radius_z
+            ))
+        
+        rand_rad_old = rand_rad
+
+        rand_rad = {sum([x[0] for x in v ])/len(v):[] for k, v in rand_rad.items()}
+                
+        # pprint(rand_rad_old.keys())
+        # pprint(rand_rad.keys())
+
+        if rand_rad_old.keys() == rand_rad.keys():
+            break
+    return rand_rad_old
+
+
 
 while True:
-
-    for sph in obj.SPHERES:
-        _min = abs(list(rand_rad.keys())[0] - sph.max_radius)
-        _class = None
-        # _print("\n")
-        for rr in rand_rad.keys():
-            candid = abs(rr - sph.max_radius)
-            # _print("For sphere", sph, "calc", rr, "-", sph.max_radius, "=", candid)
-            if candid <= _min:
-                _min = candid
-                _class = rr
-        # _print(_min, "-> class", _class)
-        rand_rad[_class].append((
-            sph.max_radius,
-            sph.max_radius_x,
-            sph.max_radius_y,
-            sph.max_radius_z
-        ))
-    
-    rand_rad_old = rand_rad
-
-    rand_rad = {sum([x[0] for x in v ])/len(v):[] for k, v in rand_rad.items()}
-            
-    # pprint(rand_rad_old.keys())
-    # pprint(rand_rad.keys())
-
-    if rand_rad_old.keys() == rand_rad.keys():
+    try:
+        rand_rad_old = KKlas()
         break
+    except Exception as e:
+        print("Exception:", e)
+        continue
 
-
-
-import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-
-def drawSphere(xCenter, yCenter, zCenter, r):
-    #draw sphere
-    u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
-    x=np.cos(u)*np.sin(v)
-    y=np.sin(u)*np.sin(v)
-    z=np.cos(v)
-    # shift and scale sphere
-    x = r*x + xCenter
-    y = r*y + yCenter
-    z = r*z + zCenter
-    return (x,y,z)
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
 c = 0
-colors = ["blue", "red", "green"]
+
+low = [
+    ["#488f31"], # green
+    ["#a8c162"], # bright green
+]
+medium = [
+    ["#665191"],
+    ["#a05195"],
+]
+high = [
+    ["#f9a160"], # bright orange
+    ["#de425b"], # bright red
+]
+
+if K == 2:
+    colors=[low[0], high[1]]
+if K == 3:
+    colors=[low[0], medium[0], high[1]]
+if K == 4:
+    colors=[low[0], medium[0], high[0], high[1]]
+if K == 5:
+    colors=[low[0], low[1], medium[0], high[0], high[1]]
+if K == 6:
+    colors=[low[0], low[1], medium[0], medium[1], high[0], high[1]]
+
+
 for k, v in rand_rad_old.items():
     for t in v:
         r, x, y, z = t
@@ -366,7 +423,8 @@ for k, v in rand_rad_old.items():
         xi = x
         yi = y
         zi = z
-        ax.scatter(xi, yi, zi, s=ri*ri, alpha=0.9, c=colors[c%3])
+        ax.scatter(xi, yi, zi, s=ri*ri, alpha=0.97, c=colors[c % len(colors)])
     c += 1
+
 
 plt.show()
