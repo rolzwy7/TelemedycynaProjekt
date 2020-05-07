@@ -21,7 +21,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "K", type=int,
-    choices=[2,3,4,5,6],
+    choices=[2,3,4,5,6,10],
     help="K <help here>"
 )
 parser.add_argument(
@@ -330,27 +330,35 @@ with open(RESULT_FILE, "wb") as dst:
 a = None
 
 
-def KKlas():
+def KKlas(spheres):
+    # import pdb; pdb.set_trace();
+    _print("\nKKlas new")
     # K mean
+    num_spheres = len(spheres)
     rand_rad = []
     for _ in range(K):
-        candid = randint(1, max(_r)+5)
+        candid = randint(0, num_spheres)
         while candid in rand_rad:
-            candid = randint(min(_r)-3, max(_r)+3)
+            candid = randint(0, num_spheres)
         rand_rad.append(candid)
 
-    _print(rand_rad)
+    _print("Rand", rand_rad)
+    for i in range(len(rand_rad)):
+        rand_rad[i] = spheres[rand_rad[i]].max_radius
+    _print("Rand obj", rand_rad)
+
 
     rand_rad_old = None
     rand_rad = {x:[] for x in rand_rad}
 
     while True:
 
-        for sph in obj.SPHERES:
-            _min = abs(list(rand_rad.keys())[0] - sph.max_radius)
+        for sph in spheres:
+            _min = max(list(rand_rad.keys())) #abs(list(rand_rad.keys())[0] - sph.max_radius)
             _class = None
             # _print("\n")
             for rr in rand_rad.keys():
+                # candid = abs(rr - sph.max_radius)
                 candid = abs(rr - sph.max_radius)
                 # _print("For sphere", sph, "calc", rr, "-", sph.max_radius, "=", candid)
                 if candid <= _min:
@@ -367,7 +375,12 @@ def KKlas():
         rand_rad_old = rand_rad
 
         rand_rad = {sum([x[0] for x in v ])/len(v):[] for k, v in rand_rad.items()}
-                
+        # _temp = {}
+        # for k, v in rand_rad.items():
+        #     if len(v) != 0:
+        #         _temp[sum([x[0] for x in v ])/len(v)] = []
+        # rand_rad = _temp
+        
         # pprint(rand_rad_old.keys())
         # pprint(rand_rad.keys())
 
@@ -379,11 +392,14 @@ def KKlas():
 
 while True:
     try:
-        rand_rad_old = KKlas()
+        rand_rad_old = KKlas(obj.SPHERES)
         break
     except Exception as e:
-        print("Exception:", e)
+        _print("Exception:", e)
         continue
+
+# rand_rad_old = KKlas(obj.SPHERES)
+     
 
 
 fig = plt.figure()
@@ -404,16 +420,33 @@ high = [
     ["#de425b"], # bright red
 ]
 
-if K == 2:
-    colors=[low[0], high[1]]
-if K == 3:
-    colors=[low[0], medium[0], high[1]]
-if K == 4:
-    colors=[low[0], medium[0], high[0], high[1]]
-if K == 5:
-    colors=[low[0], low[1], medium[0], high[0], high[1]]
-if K == 6:
-    colors=[low[0], low[1], medium[0], medium[1], high[0], high[1]]
+
+colors = [
+    "#ff0000",
+    "#4c1b13",
+    "#7f5500",
+    "#d6e600",
+    "#61f200",
+    "#468c6c",
+    "#005580",
+    "#00144d",
+    "#6d5673",
+    "#ff40a6",
+]
+
+colors = list(reversed(colors))[:K]
+
+# if K == 2:
+#     colors=[low[0], high[1]]
+# if K == 3:
+#     colors=[low[0], medium[0], high[1]]
+# if K == 4:
+#     colors=[low[0], medium[0], high[0], high[1]]
+# if K == 5:
+#     colors=[low[0], low[1], medium[0], high[0], high[1]]
+# if K == 6:
+#     colors=[low[0], low[1], medium[0], medium[1], high[0], high[1]]
+# if K == 10:
 
 
 for k, v in rand_rad_old.items():
