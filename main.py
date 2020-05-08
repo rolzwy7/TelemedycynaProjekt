@@ -12,8 +12,7 @@ from argparse import ArgumentParser
 
 import matplotlib.pyplot as plt
 
-
-
+# Argument Parser Start
 parser = ArgumentParser()
 parser.add_argument(
     "dirpath",
@@ -21,54 +20,47 @@ parser.add_argument(
 )
 parser.add_argument(
     "K", type=int,
-    choices=[2,3,4,5,6,10],
-    help="K <help here>"
+    choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 150],
+    help="Liczba klas"
 )
 parser.add_argument(
     "--slice-skip", type=int,
-    default=4, choices=[1, 4,5,6,7],
-    help="slice skip <help here>"
+    default=4, choices=[1,4,5,6,7],
+    help="Co którą warstwę pomijać"
 )
 parser.add_argument(
     "--pixel-skip", type=int,
     default=14, choices=[1, 3, 7, 14, 20, 30],
-    help="pixel skip <help here>"
+    help="Co który pixel pomijać"
 )
 parser.add_argument(
     "--debug", action="store_true",
-    help="debug <help here>"
+    help="Tryb Debug"
 )
 args = parser.parse_args()
+# Argument Parser End
 
+# Config Start
 slice_skip = args.slice_skip
 pixel_skip = args.pixel_skip
-
 K = args.K # K klas
 dirpath = args.dirpath
-
 RESULT_FILE = "result.json"
-
 DEBUG_COLOR = 125
-
 PIXEL_LOOP = pixel_skip
-
 DEBUG = args.debug
-
 _print = print
-
-
+def print(*args, **kwargs):
+    if DEBUG:
+        _print(*args, **kwargs)
+# Config End
 
 ## Info
 if DEBUG:
     print("DEBUG is ON")
-
 print("Result file :", RESULT_FILE)
 print("Slice skip  :", slice_skip, "slices")
 print("Pixel skip  :", pixel_skip, "px")
-
-def print(*args, **kwargs):
-    if DEBUG:
-        _print(*args, **kwargs)
 
 
 class Tracker():
@@ -109,9 +101,6 @@ class Tracker():
         
         self.c_x = self.x
         self.c_y = self.y
-        
-        # print("[*] Found center:", (self.x, self.y))
-        # print("\tradius :", self.calc_radius(im))
 
         self.calc_radius(im)
 
@@ -282,8 +271,6 @@ class Mapper():
                         print(tracker)
                         tracker.debug_draw_cross(self.im)
                         self.TRACKERS.append(tracker)
-        # if self.TRACKERS:
-        #     self.im.show()
 
 # Map objects
 obj = Mapper(512, 512)
@@ -331,22 +318,20 @@ a = None
 
 
 def KKlas(spheres):
-    # import pdb; pdb.set_trace();
-    _print("\nKKlas new")
     # K mean
+    print("\nKKlas new")
     num_spheres = len(spheres)
     rand_rad = []
     for _ in range(K):
-        candid = randint(0, num_spheres)
+        candid = randint(0, num_spheres-1)
         while candid in rand_rad:
-            candid = randint(0, num_spheres)
+            candid = randint(0, num_spheres-1)
         rand_rad.append(candid)
 
-    _print("Rand", rand_rad)
+    print("Rand", rand_rad)
     for i in range(len(rand_rad)):
         rand_rad[i] = spheres[rand_rad[i]].max_radius
-    _print("Rand obj", rand_rad)
-
+    print("Rand obj", rand_rad)
 
     rand_rad_old = None
     rand_rad = {x:[] for x in rand_rad}
@@ -354,17 +339,13 @@ def KKlas(spheres):
     while True:
 
         for sph in spheres:
-            _min = max(list(rand_rad.keys())) #abs(list(rand_rad.keys())[0] - sph.max_radius)
+            _min = max(list(rand_rad.keys()))
             _class = None
-            # _print("\n")
             for rr in rand_rad.keys():
-                # candid = abs(rr - sph.max_radius)
                 candid = abs(rr - sph.max_radius)
-                # _print("For sphere", sph, "calc", rr, "-", sph.max_radius, "=", candid)
                 if candid <= _min:
                     _min = candid
                     _class = rr
-            # _print(_min, "-> class", _class)
             rand_rad[_class].append((
                 sph.max_radius,
                 sph.max_radius_x,
@@ -375,51 +356,19 @@ def KKlas(spheres):
         rand_rad_old = rand_rad
 
         rand_rad = {sum([x[0] for x in v ])/len(v):[] for k, v in rand_rad.items()}
-        # _temp = {}
-        # for k, v in rand_rad.items():
-        #     if len(v) != 0:
-        #         _temp[sum([x[0] for x in v ])/len(v)] = []
-        # rand_rad = _temp
-        
-        # pprint(rand_rad_old.keys())
-        # pprint(rand_rad.keys())
 
         if rand_rad_old.keys() == rand_rad.keys():
             break
     return rand_rad_old
 
 
+rand_rad_old = KKlas(obj.SPHERES)
 
-while True:
-    try:
-        rand_rad_old = KKlas(obj.SPHERES)
-        break
-    except Exception as e:
-        _print("Exception:", e)
-        continue
-
-# rand_rad_old = KKlas(obj.SPHERES)
      
-
-
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
 c = 0
-
-low = [
-    ["#488f31"], # green
-    ["#a8c162"], # bright green
-]
-medium = [
-    ["#665191"],
-    ["#a05195"],
-]
-high = [
-    ["#f9a160"], # bright orange
-    ["#de425b"], # bright red
-]
-
 
 colors = [
     "#ff0000",
@@ -435,19 +384,6 @@ colors = [
 ]
 
 colors = list(reversed(colors))[:K]
-
-# if K == 2:
-#     colors=[low[0], high[1]]
-# if K == 3:
-#     colors=[low[0], medium[0], high[1]]
-# if K == 4:
-#     colors=[low[0], medium[0], high[0], high[1]]
-# if K == 5:
-#     colors=[low[0], low[1], medium[0], high[0], high[1]]
-# if K == 6:
-#     colors=[low[0], low[1], medium[0], medium[1], high[0], high[1]]
-# if K == 10:
-
 
 for k, v in rand_rad_old.items():
     for t in v:
