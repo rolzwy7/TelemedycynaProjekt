@@ -20,7 +20,6 @@ parser.add_argument(
 )
 parser.add_argument(
     "K", type=int,
-    choices=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 150],
     help="Liczba klas"
 )
 parser.add_argument(
